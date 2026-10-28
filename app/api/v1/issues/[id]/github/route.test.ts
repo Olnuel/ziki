@@ -94,7 +94,7 @@ describe("POST /api/v1/issues/[id]/github (#452)", () => {
   it("links the pull request and merges once the fix is accepted", async () => {
     const response = await POST(request({ pullRequestUrl: PR_URL }), params);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ linked: true, merged: true, mergeCommitSha: "merge-sha" });
+    expect(await response.json()).toEqual({ linked: true, merged: true, mergeCommitSha: "merge-sha", canVerifyMerge: true });
     expect(db.bug.update).toHaveBeenCalledWith({
       where: { id: "bug1" },
       data: { pullRequestUrl: PR_URL, pullRequestHeadSha: null },
@@ -142,7 +142,7 @@ describe("POST /api/v1/issues/[id]/github (#452)", () => {
     mocks.merge.mockResolvedValue({ status: 409, merged: false, reason: "not_accepted", message: "nope" });
     const response = await POST(request({ pullRequestUrl: PR_URL }), params);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ linked: true, merged: false, reason: "not_accepted" });
+    expect(await response.json()).toEqual({ linked: true, merged: false, reason: "not_accepted", canVerifyMerge: true });
     expect(db.bug.update).toHaveBeenCalledTimes(1);
   });
 
@@ -273,5 +273,23 @@ describe("POST /api/v1/issues/[id]/github (#452)", () => {
     const response = await POST(request({ pullRequestUrl: PR_URL }), params);
     expect(response.status).toBe(429);
     expect(mocks.merge).not.toHaveBeenCalled();
+  });
+
+  it("reports canVerifyMerge false when the project has no repoUrl", async () => {
+    db.bug.findFirst.mockResolvedValue({
+      id: "bug1",
+      projectId: "proj-1",
+      pullRequestUrl: null,
+      project: { repoUrl: null, githubInstallationId: null },
+    });
+    const response = await POST(request({ pullRequestUrl: PR_URL }), params);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.linked).toBe(true);
+    expect(body.canVerifyMerge).toBe(false);
+    expect(db.bug.update).toHaveBeenCalledWith({
+      where: { id: "bug1" },
+      data: { pullRequestUrl: PR_URL, pullRequestHeadSha: null },
+    });
   });
 });
