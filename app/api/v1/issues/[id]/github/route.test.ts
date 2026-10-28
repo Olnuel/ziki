@@ -33,6 +33,7 @@ const db = vi.hoisted(() => ({
   agentEvent: { create: vi.fn() },
   webhookSubscription: { findMany: vi.fn() },
   webhookDelivery: { createMany: vi.fn() },
+  projectRepository: { findMany: vi.fn().mockResolvedValue([]) },
   $transaction: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
@@ -203,7 +204,7 @@ describe("POST /api/v1/issues/[id]/github (#452)", () => {
     expect(await response.json()).toMatchObject({ linked: true, merged: false, reason: "head_moved" });
     expect(db.bug.update).toHaveBeenCalledWith({
       where: { id: "bug1" },
-      data: { pullRequestUrl: PR_URL, pullRequestHeadSha: "fresh-sha" },
+      data: { pullRequestUrl: PR_URL, pullRequestHeadSha: null },
     });
   });
 
@@ -218,7 +219,7 @@ describe("POST /api/v1/issues/[id]/github (#452)", () => {
     expect(response.status).toBe(200);
     expect(db.bug.update).toHaveBeenCalledWith({
       where: { id: "bug1" },
-      data: { pullRequestUrl: PR_URL, pullRequestHeadSha: "abc123" },
+      data: { pullRequestUrl: PR_URL, pullRequestHeadSha: null },
     });
   });
 
